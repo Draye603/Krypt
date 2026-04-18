@@ -1,0 +1,254 @@
+-- Timebomb Duels Script v9.1 - 45° Avatar Flick + Fixed Auto Follow Player
+-- Rayfield GUI - Loading Subtitle by Krypt
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Timebomb Duels Script",
+    LoadingTitle = "Timebomb Duels Script",
+    LoadingSubtitle = "by Krypt",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "WallhopConfig",
+        FileName = "TimebombDuelsV9_1"
+    },
+    KeySystem = false
+})
+
+local MainTab = Window:CreateTab("Main", 4483362458)
+local BypassTab = Window:CreateTab("Anti-Cheat Bypass", 6026568198)
+
+-- Wallhop Toggles
+local AutoWallhopToggle = MainTab:CreateToggle({
+    Name = "Auto Wallhop (45° Avatar Flick on Wall Contact)",
+    CurrentValue = false,
+    Flag = "AutoWallhopFlag",
+    Callback = function(Value)
+        getgenv().AutoWallhop = Value
+    end,
+})
+
+local InfJumpWithFlickToggle = MainTab:CreateToggle({
+    Name = "Infinite Jump (Only When Touching Wall) + 45° Flick",
+    CurrentValue = false,
+    Flag = "InfFlickFlag",
+    Callback = function(Value)
+        getgenv().InfJumpWithFlick = Value
+    end,
+})
+
+-- Auto Follow Player (Fixed with Pathfinding)
+local Players = game:GetService("Players")
+local allPlayers = {}
+for _, plr in ipairs(Players:GetPlayers()) do
+    if plr ~= Players.LocalPlayer then
+        table.insert(allPlayers, plr.Name)
+    end
+end
+
+local TargetDropdown = MainTab:CreateDropdown({
+    Name = "Select Player to Follow",
+    Options = allPlayers,
+    CurrentOption = {""},
+    MultipleOptions = false,
+    Flag = "FollowTargetFlag",
+    Callback = function(CurrentOption)
+        getgenv().FollowTargetName = CurrentOption[1] or ""
+    end,
+})
+
+local AutoFollowToggle = MainTab:CreateToggle({
+    Name = "Auto Follow Selected Player (Fixed)",
+    CurrentValue = false,
+    Flag = "AutoFollowFlag",
+    Callback = function(Value)
+        getgenv().AutoFollow = Value
+    end,
+})
+
+local ManualFlickButton = MainTab:CreateButton({
+    Name = "Manual 45° Avatar Flick",
+    Callback = function()
+        FlickAvatar()
+    end,
+})
+
+-- Anti-Cheat Bypass
+local BypassVelocityToggle = BypassTab:CreateToggle({
+    Name = "Bypass Velocity Checks",
+    CurrentValue = false,
+    Flag = "BypassVel",
+    Callback = function(Value)
+        getgenv().BypassVelocity = Value
+    end,
+})
+
+local BypassStateToggle = BypassTab:CreateToggle({
+    Name = "Spoof Humanoid States",
+    CurrentValue = false,
+    Flag = "BypassState",
+    Callback = function(Value)
+        getgenv().BypassStates = Value
+    end,
+})
+
+-- Services
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local PathfindingService = game:GetService("PathfindingService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local root = character:WaitForChild("HumanoidRootPart")
+
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = newChar:WaitForChild("Humanoid")
+    root = newChar:WaitForChild("HumanoidRootPart")
+end)
+
+-- 45° Avatar Flick Function
+local function FlickAvatar()
+    if not root then return end
+    local originalCFrame = root.CFrame
+    root.CFrame = originalCFrame * CFrame.Angles(0, math.rad(45), 0)
+    task.wait(0.025)
+    root.CFrame = originalCFrame * CFrame.Angles(0, math.rad(-40), 0)
+    task.wait(0.015)
+    root.CFrame = originalCFrame
+end
+
+-- Shared Wall Detection
+local function IsTouchingWall()
+    if not root then return false end
+    local touching = root:GetTouchingParts()
+    for _, part in ipairs(touching) do
+        if part.CanCollide and not part:IsDescendantOf(character) then
+            return true
+        end
+    end
+    local rayParams = RaycastParams.new()
+    rayParams.FilterDescendantsInstances = {character}
+    rayParams.FilterType = Enum.RaycastFilterType.Exclude
+    local hit = workspace:Raycast(root.Position, root.CFrame.LookVector * 3, rayParams)
+    if hit and hit.Instance.CanCollide then
+        return true
+    end
+    return false
+end
+
+-- Infinite Jump ONLY on wall
+UserInputService.JumpRequest:Connect(function()
+    if not humanoid or not getgenv().InfJumpWithFlick then return end
+    if IsTouchingWall() then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        task.delay(0.03, function()
+            if IsTouchingWall() then
+                FlickAvatar()
+            end
+        end)
+    end
+end)
+
+-- Auto Wallhop
+local lastFlickTime = 0
+RunService.Heartbeat:Connect(function()
+    if not getgenv().AutoWallhop then return end
+    if not (humanoid and root) then return end
+    if tick() - lastFlickTime < 0.45 then return end
+
+    local state = humanoid:GetState()
+    if state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Jumping then
+        if IsTouchingWall() then
+            local vel = root.Velocity
+            if vel.Magnitude > 8 then
+                FlickAvatar()
+                lastFlickTime = tick()
+            end
+        end
+    end
+end)
+
+-- Fixed Auto Follow with Pathfinding
+local followConnection
+local currentPath = nil
+
+local function StartAutoFollow()
+    if followConnection then followConnection:Disconnect() end
+    
+    followConnection = RunService.Heartbeat:Connect(function()
+        if not getgenv().AutoFollow or not getgenv().FollowTargetName or not humanoid or not root then return end
+        
+        local targetPlayer = Players:FindFirstChild(getgenv().FollowTargetName)
+        if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then 
+            humanoid:MoveTo(root.Position) -- Stop
+            return 
+        end
+        
+        local targetRoot = targetPlayer.Character.HumanoidRootPart
+        local distance = (root.Position - targetRoot.Position).Magnitude
+        
+        if distance < 6 then
+            humanoid:MoveTo(root.Position)
+            return
+        end
+        if distance > 300 then return end
+        
+        -- Create and compute path every ~0.5s (or on demand)
+        if not currentPath or tick() % 0.5 < 0.05 then
+            currentPath = PathfindingService:CreatePath({
+                AgentRadius = 4,
+                AgentHeight = 6,
+                AgentCanJump = true,
+                WaypointSpacing = 8,
+            })
+            currentPath:ComputeAsync(root.Position, targetRoot.Position)
+        end
+        
+        if currentPath.Status == Enum.PathStatus.Success then
+            local waypoints = currentPath:GetWaypoints()
+            if #waypoints > 1 then
+                humanoid:MoveTo(waypoints[2].Position)  -- Move to next waypoint
+            end
+        end
+    end)
+end
+
+-- Toggle handler for Auto Follow
+AutoFollowToggle.Callback = function(Value)
+    getgenv().AutoFollow = Value
+    if Value then
+        StartAutoFollow()
+        Rayfield:Notify({Title = "Auto Follow", Content = "Following started - using pathfinding", Duration = 4})
+    else
+        if followConnection then 
+            followConnection:Disconnect() 
+            followConnection = nil
+        end
+        if humanoid then humanoid:MoveTo(root.Position) end
+        Rayfield:Notify({Title = "Auto Follow", Content = "Following stopped", Duration = 3})
+    end
+end
+
+-- Refresh Player List
+MainTab:CreateButton({
+    Name = "Refresh Player List",
+    Callback = function()
+        local newList = {}
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= Players.LocalPlayer then
+                table.insert(newList, plr.Name)
+            end
+        end
+        TargetDropdown:Refresh(newList)
+        Rayfield:Notify({Title = "Player List Refreshed", Content = "Select your target again", Duration = 3})
+    end,
+})
+
+Rayfield:Notify({
+    Title = "Timebomb Duels Script v9.1 Loaded ✅",
+    Content = "• Auto Follow Player FIXED with PathfindingService\n• Infinite Jump only on wall + 45° flick\n• Auto Wallhop ready\nTest following in an open area first!",
+    Duration = 8,
+    Image = 4483362458
+})
