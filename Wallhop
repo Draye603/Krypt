@@ -1,0 +1,242 @@
+-- 🗼 Troll Tower Wallhop Script (Recreated from YouTube Styles 2026)
+-- Strong Wallhop + Fling + Fly + AC Bypass
+-- Inspired by popular pinning tower / troll wallhop videos
+
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+
+local Window = Fluent:CreateWindow({
+    Title = "Troll Tower Wallhop Hub",
+    SubTitle = "YouTube Style Wallhop Recreation",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.RightControl
+})
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+local Humanoid = Character:WaitForChild("Humanoid")
+
+local wallhopEnabled = false
+local wallhopBoost = 65   -- Vertical boost (common in YT scripts)
+local wallhopForward = 2.5 -- Forward push on wall
+
+local flingEnabled = false
+local flingPower = 7500
+
+local flyEnabled = false
+local flySpeed = 140
+
+local bodyVelocity, bodyGyro = nil, nil
+local connections = {}
+
+-- === Enhanced Anti-Cheat Bypass ===
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    if method == "FireServer" then
+        local name = self.Name:lower()
+        if name:find("anticheat") or name:find("check") or name:find("verify") or name:find("kick") then
+            return
+        end
+    end
+    if method == "Kick" then return end
+    return oldNamecall(self, ...)
+end)
+setreadonly(mt, true)
+
+-- Velocity Spoof (helps look legit like many YT "fake wallhop" scripts)
+RunService.Heartbeat:Connect(function()
+    if RootPart and Humanoid.Health > 0 then
+        local vel = RootPart.Velocity
+        if vel.Magnitude > 85 then
+            RootPart.Velocity = vel * 0.935 + Vector3.new(math.random(-4,4), math.random(-1,3), math.random(-4,4))
+        end
+    end
+end)
+
+-- Respawn Support
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    Character = newChar
+    RootPart = newChar:WaitForChild("HumanoidRootPart")
+    Humanoid = newChar:WaitForChild("Humanoid")
+    task.wait(0.5)
+    if flyEnabled then startFly() end
+end)
+
+-- ==================== WALLHOP (YouTube-Style) ====================
+local function toggleWallhop(state)
+    wallhopEnabled = state
+    if state then
+        local conn = RunService.Heartbeat:Connect(function()
+            if not wallhopEnabled or not RootPart then return end
+            
+            local rayParams = RaycastParams.new()
+            rayParams.FilterDescendantsInstances = {Character}
+            rayParams.FilterType = Enum.RaycastFilterType.Exclude
+            
+            local result = Workspace:Raycast(RootPart.Position, RootPart.CFrame.LookVector * 7, rayParams)
+            if result and result.Instance then
+                -- Classic wallhop boost (up + forward) - matches most YT demos
+                RootPart.Velocity = RootPart.Velocity + Vector3.new(0, wallhopBoost, 0)
+                RootPart.CFrame = RootPart.CFrame + (RootPart.CFrame.LookVector * wallhopForward)
+            end
+        end)
+        table.insert(connections, conn)
+    end
+end
+
+-- ==================== FLING & FLY (Kept from previous requests) ====================
+local function toggleFling(state)
+    flingEnabled = state
+    if state then
+        local conn = RunService.Heartbeat:Connect(function()
+            if not flingEnabled or not RootPart then return end
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                    local target = plr.Character.HumanoidRootPart
+                    local dir = (target.Position - RootPart.Position).Unit
+                    target.Velocity = dir * flingPower + Vector3.new(0, 220, 0)
+                end
+            end
+        end)
+        table.insert(connections, conn)
+    end
+end
+
+local function startFly()
+    if bodyVelocity then bodyVelocity:Destroy() end
+    if bodyGyro then bodyGyro:Destroy() end
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(1e6,1e6,1e6)
+    bodyVelocity.Parent = RootPart
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.MaxTorque = Vector3.new(1e6,1e6,1e6)
+    bodyGyro.P = 15000
+    bodyGyro.Parent = RootPart
+end
+
+local function stopFly()
+    if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
+    if bodyGyro then bodyGyro:Destroy() bodyGyro = nil end
+end
+
+local function toggleFly(state)
+    flyEnabled = state
+    if state then
+        startFly()
+        local conn = RunService.Heartbeat:Connect(function()
+            if not flyEnabled or not bodyVelocity or not bodyGyro then return end
+            local cam = Workspace.CurrentCamera
+            local move = Vector3.zero
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then move -= Vector3.new(0,1,0) end
+            
+            local dir = move.Magnitude > 0 and move.Unit or Vector3.zero
+            bodyVelocity.Velocity = dir * flySpeed
+            bodyGyro.CFrame = cam.CFrame
+        end)
+        table.insert(connections, conn)
+    else
+        stopFly()
+    end
+end
+
+-- ==================== UI (Clean & Simple) ====================
+local MainTab = Window:AddTab({ Title = "Main", Icon = "zap" })
+
+MainTab:AddToggle("WallhopToggle", {
+    Title = "Wallhop (YouTube Style)",
+    Default = false,
+    Callback = function(Value)
+        toggleWallhop(Value)
+        Fluent:Notify({Title = "Wallhop", Content = Value and "ON - Face walls & move forward" or "OFF", Duration = 3})
+    end
+})
+
+MainTab:AddSlider("WallhopBoost", {
+    Title = "Wallhop Boost",
+    Description = "Vertical power",
+    Default = 65,
+    Min = 30,
+    Max = 150,
+    Rounding = 0,
+    Callback = function(Value) wallhopBoost = Value end
+})
+
+MainTab:AddSlider("WallhopForward", {
+    Title = "Forward Push",
+    Default = 2.5,
+    Min = 1,
+    Max = 5,
+    Rounding = 1,
+    Callback = function(Value) wallhopForward = Value end
+})
+
+MainTab:AddToggle("FlingToggle", {
+    Title = "Fling Players",
+    Default = false,
+    Callback = function(Value)
+        toggleFling(Value)
+        Fluent:Notify({Title = "Fling", Content = Value and "ON" or "OFF", Duration = 3})
+    end
+})
+
+MainTab:AddSlider("FlingPower", {
+    Title = "Fling Power",
+    Default = 7500,
+    Min = 2000,
+    Max = 16000,
+    Rounding = 0,
+    Callback = function(Value) flingPower = Value end
+})
+
+MainTab:AddToggle("FlyToggle", {
+    Title = "Fly",
+    Default = false,
+    Callback = function(Value)
+        toggleFly(Value)
+        Fluent:Notify({Title = "Fly", Content = Value and "ON - WASD + Space/Ctrl" or "OFF", Duration = 3})
+    end
+})
+
+MainTab:AddSlider("FlySpeed", {
+    Title = "Fly Speed",
+    Default = 140,
+    Min = 50,
+    Max = 350,
+    Rounding = 0,
+    Callback = function(Value) flySpeed = Value end
+})
+
+local ExtrasTab = Window:AddTab({ Title = "Extras", Icon = "settings" })
+
+ExtrasTab:AddButton({
+    Title = "Unload Script",
+    Callback = function()
+        for _, c in connections do if c then c:Disconnect() end end
+        stopFly()
+        Window:Destroy()
+    end
+})
+
+Fluent:Notify({
+    Title = "Troll Tower Wallhop Loaded",
+    Content = "Recreated from popular YouTube wallhop scripts. Combine with fly for insane climbs!",
+    Duration = 5
+})
+
+print("Troll Tower Wallhop Script (YouTube recreation) loaded!")
