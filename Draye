@@ -1,0 +1,58 @@
+-- palofsc - Rayfield GUI script for Roblox
+-- Features: WalkSpeed control and ESP (Chams)
+-- Note: This script uses the Rayfield library.
+-- Security Note: Anti-cheat bypass methods are highly specific to 
+-- individual game scripts (e.g., localizing movement or modifying 
+-- velocity instead of Humanoid.WalkSpeed). This script utilizes 
+-- common bypass patterns.
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Exploit Control Panel",
+   LoadingTitle = "Initializing Systems",
+   LoadingSubtitle = "by palofsc",
+})
+
+local Tab = Window:CreateTab("Movement & ESP", "move")
+
+-- WalkSpeed Section
+local WalkSpeedValue = 25
+Tab:CreateButton({
+   Name = "Set WalkSpeed to 25",
+   Callback = function()
+      local player = game.Players.LocalPlayer
+      if player.Character and player.Character:FindFirstChild("Humanoid") then
+         -- Anti-cheat bypass: Modifying Velocity instead of WalkSpeed property
+         local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+         if hrp then
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+         end
+         player.Character.Humanoid.WalkSpeed = WalkSpeedValue
+      end
+   end,
+})
+
+-- ESP Section
+Tab:CreateToggle({
+   Name = "Enable ESP",
+   CurrentValue = false,
+   Callback = function(Value)
+      if Value then
+         for _, v in pairs(game.Players:GetPlayers()) do
+            if v ~= game.Players.LocalPlayer and v.Character then
+               local highlight = Instance.new("Highlight")
+               highlight.Name = "ESP_Highlight"
+               highlight.Parent = v.Character
+               highlight.FillColor = Color3.fromRGB(255, 0, 0)
+            end
+         end
+      else
+         for _, v in pairs(game.Players:GetPlayers()) do
+            if v.Character and v.Character:FindFirstChild("ESP_Highlight") then
+               v.Character.ESP_Highlight:Destroy()
+            end
+         end
+      end
+   end,
+})
