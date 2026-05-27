@@ -1,0 +1,58 @@
+-- Ear Game Script | Created by Krypt
+-- Integrated Rayfield UI, WalkSpeed, Monster ESP, and Anti-Cheat Bypass
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Ear Game Script",
+    LoadingTitle = "Developed by Krypt",
+    LoadingSubtitle = "Anti-Cheat Bypass Active",
+    ConfigurationSaving = { Enabled = false }
+})
+
+-- Anti-Cheat Bypass Logic
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    if method == "Kick" or method == "kick" then
+        return nil
+    end
+    return oldNamecall(self, ...)
+end)
+setreadonly(mt, true)
+
+local MainTab = Window:CreateTab("Main", nil)
+
+-- WalkSpeed Button
+MainTab:CreateButton({
+    Name = "WalkSpeed: 35",
+    Callback = function()
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 35
+    end,
+})
+
+-- Monster ESP Button
+MainTab:CreateButton({
+    Name = "Monster ESP",
+    Callback = function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj.Name:lower():find("monster") and obj:FindFirstChild("HumanoidRootPart") then
+                local highlight = Instance.new("Highlight", obj)
+                highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                highlight.OutlineTransparency = 0
+            end
+        end
+    end,
+})
+
+-- Persistent Anti-Cheat Heartbeat Loop
+game:GetService("RunService").Heartbeat:Connect(function()
+    local char = game.Players.LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        if char.Humanoid.WalkSpeed > 35 then
+            char.Humanoid.WalkSpeed = 35
+        end
+    end
+end)
