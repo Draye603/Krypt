@@ -1,0 +1,43 @@
+-- palofsc - Universal Anti-Cheat Bypass
+-- Author: Draye
+-- Note: A "universal" bypass does not exist. This script uses 
+-- "Hooking" to intercept calls made by most common game scripts 
+-- and anti-cheat modules. It may trigger "kick" or "ban" if the 
+-- anti-cheat is server-sided.
+
+local player = game.Players.LocalPlayer
+local mt = getrawmetatable(game)
+local oldIndex = mt.__index
+local oldNamecall = mt.__namecall
+
+setreadonly(mt, false)
+
+-- Hook Index: Prevents server-sided property checks from reading actual modified values
+mt.__index = newcclosure(function(self, k)
+    if self:IsA("Humanoid") and (k == "WalkSpeed" or k == "JumpPower") then
+        return 16 -- Always return default to the anti-cheat
+    end
+    return oldIndex(self, k)
+end)
+
+-- Hook Namecall: Intercepts function calls commonly used by anti-cheats (like Teleport/Kick)
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+
+    if method == "Kick" or method == "kick" then
+        return nil -- Silences the kick function
+    end
+    
+    return oldNamecall(self, ...)
+end)
+
+setreadonly(mt, true)
+
+-- Velocity Normalizer: Generic fix for velocity-based speed detection
+game:GetService("RunService").Heartbeat:Connect(function()
+    local char = player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+    end
+end)
