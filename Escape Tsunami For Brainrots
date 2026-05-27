@@ -1,0 +1,45 @@
+-- Escape Tsunami Auto-Win & Speed Script
+-- Designed for bypassing stage mechanics and water progression timers
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Function to teleport to the final platform (Victory Zone)
+local function InstantWin()
+    local map = workspace:FindFirstChild("Map") or workspace
+    local finish = map:FindFirstChild("Finish") or map:FindFirstChild("End") or map:FindFirstChild("Victory")
+    
+    if finish then
+        LocalPlayer.Character:MoveTo(finish.Position)
+    end
+end
+
+-- Function to modify player physics for tsunami survival
+local function DisableWaterDamage()
+    -- This targets common water volume detection scripts
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("TouchTransmitter") and v.Parent.Name:lower():find("water") then
+            v:Destroy()
+        end
+    end
+end
+
+-- GUI Interface
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 150, 0, 100)
+Frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+
+local WinBtn = Instance.new("TextButton", Frame)
+WinBtn.Size = UDim2.new(0, 130, 0, 30)
+WinBtn.Position = UDim2.new(0.06, 0, 0.1, 0)
+WinBtn.Text = "Instant Win"
+WinBtn.MouseButton1Click:Connect(InstantWin)
+
+local WaterBtn = Instance.new("TextButton", Frame)
+WaterBtn.Size = UDim2.new(0, 130, 0, 30)
+WaterBtn.Position = UDim2.new(0.06, 0, 0.5, 0)
+WaterBtn.Text = "Remove Water"
+WaterBtn.MouseButton1Click:Connect(DisableWaterDamage)
