@@ -1,0 +1,48 @@
+-- Scary Shawarma Script | UI Style: Tora Isme
+-- Includes: Anomaly/Innocent ESP, Fullbright, and Anti-Cheat Bypass
+
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/wally-rblx/ToraIsme/main/ui.lua"))()
+local Window = Library:CreateWindow("Scary Shawarma")
+
+-- Anti-Cheat Bypass
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    if method == "Kick" or method == "kick" then return nil end
+    return oldNamecall(self, ...)
+end)
+setreadonly(mt, true)
+
+-- ESP Function
+local function ToggleESP(enabled)
+    for _, v in pairs(workspace:GetDescendants()) do
+        if (v.Name:lower():find("anomaly") or v.Name:lower():find("innocent")) and v:FindFirstChild("HumanoidRootPart") then
+            if enabled then
+                local hl = Instance.new("Highlight", v)
+                hl.Name = "ESP_Highlight"
+                hl.FillColor = v.Name:lower():find("anomaly") and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(0, 255, 0)
+            else
+                if v:FindFirstChild("ESP_Highlight") then v.ESP_Highlight:Destroy() end
+            end
+        end
+    end
+end
+
+-- Fullbright Function
+local function SetFullbright(enabled)
+    local Lighting = game:GetService("Lighting")
+    if enabled then
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = 100000
+    else
+        Lighting.Brightness = 1
+        Lighting.ClockTime = 12
+    end
+end
+
+-- UI Elements
+Window:AddToggle("Enable ESP", function(state) ToggleESP(state) end)
+Window:AddToggle("Enable Fullbright", function(state) SetFullbright(state) end)
