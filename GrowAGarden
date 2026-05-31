@@ -1,0 +1,63 @@
+-- Grow a Garden - Eclipse UI Implementation
+-- Note: Requires an Eclipse-compatible execution environment.
+
+local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/wally-rblx/eclipse-lib/master/source.lua"))()
+local window = library:Window({
+    name = "Grow a Garden | Eclipse",
+    size = UDim2.fromOffset(400, 300)
+})
+
+local tab = window:Tab({ name = "Gardening" })
+
+-- Toggle: Auto Harvest and Plant
+tab:Toggle({
+    name = "Auto Harvest & Plant",
+    callback = function(state)
+        _G.AutoFarm = state
+        task.spawn(function()
+            while _G.AutoFarm do
+                local plots = workspace:FindFirstChild("GardenPlots")
+                if plots then
+                    for _, plot in pairs(plots:GetChildren()) do
+                        -- Harvest matured crops
+                        if plot:FindFirstChild("Crop") and plot.Crop:GetAttribute("IsMature") then
+                            game:GetService("ReplicatedStorage").Remotes.Harvest:FireServer(plot)
+                        end
+                        -- Plant in empty plots
+                        if not plot:FindFirstChild("Crop") then
+                            game:GetService("ReplicatedStorage").Remotes.Plant:FireServer(plot, "BestSeed")
+                        end
+                    end
+                end
+                task.wait(1)
+            end
+        end)
+    end
+})
+
+-- Toggle: ESP
+tab:Toggle({
+    name = "ESP All Plants",
+    callback = function(state)
+        for _, plot in pairs(workspace.GardenPlots:GetChildren()) do
+            if state then
+                local hl = Instance.new("Highlight", plot)
+                hl.Name = "PlotHighlight"
+            else
+                if plot:FindFirstChild("PlotHighlight") then plot.PlotHighlight:Destroy() end
+            end
+        end
+    end
+})
+
+-- Monitor: Money
+tab:Label({ name = "Balance: " .. tostring(game.Players.LocalPlayer.leaderstats.Money.Value) })
+
+-- Config Management
+tab:Button({
+    name = "Save Current Config",
+    callback = function()
+        -- Implementation dependent on the specific Eclipse version's save system
+        print("Config saved to local storage.")
+    end
+})
