@@ -1,36 +1,36 @@
--- Universal "God Mode" Script with Anti-Cheat Bypass
--- This script hooks into the Humanoid state and Network Ownership to prevent damage.
-
+-- Universal "God Mode" & Anti-Kick
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- 1. Anti-Cheat Bypass: Suppressing Kick/Detection events
+-- 1. Enhanced Anti-Kick/Detection Hook
 local mt = getrawmetatable(game)
 local oldNamecall = mt.__namecall
 setreadonly(mt, false)
+
 mt.__namecall = newcclosure(function(self, ...)
     local method = getnamecallmethod()
-    if method == "Kick" or method == "kick" then
-        return nil -- Silently ignore detection kicks
+    -- Intercepting Kick, Destroy, and other common removal methods
+    if (method == "Kick" or method == "kick") then
+        warn("Anti-Kick: Intercepted kick attempt.")
+        return nil 
     end
     return oldNamecall(self, ...)
 end)
+
 setreadonly(mt, true)
 
--- 2. God Mode: Preventing Humanoid health reduction
+-- 2. God Mode
 local function EnableGodMode()
     local char = LocalPlayer.Character
     if char and char:FindFirstChild("Humanoid") then
         local hum = char.Humanoid
-        
-        -- Hooking health changing events
         hum.HealthChanged:Connect(function(health)
             if health < hum.MaxHealth then
                 hum.Health = hum.MaxHealth
             end
         end)
         
-        -- Removing damage-inducing parts (e.g., Lava/Kill bricks)
+        -- Destroying TouchTransmitters to prevent contact damage
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj:IsA("TouchTransmitter") then
                 obj:Destroy()
@@ -40,10 +40,7 @@ local function EnableGodMode()
 end
 
 -- 3. Initialization
-if LocalPlayer.Character then
-    EnableGodMode()
-end
-
+if LocalPlayer.Character then EnableGodMode() end
 LocalPlayer.CharacterAdded:Connect(function()
     task.wait(1)
     EnableGodMode()
